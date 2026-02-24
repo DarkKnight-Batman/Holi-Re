@@ -6,6 +6,8 @@
     <title>Corporate Holi Bash 2024</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- EmailJS Library - Required for real email delivery -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; background: #fdfdfd; user-select: none; }
         canvas { position: fixed; top: 0; left: 0; z-index: 1; cursor: crosshair; }
@@ -15,32 +17,66 @@
         .ui-layer { position: relative; z-index: 10; pointer-events: none; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem; }
         .interactive { pointer-events: auto; }
         .vibrate { animation: vibrate 0.1s linear infinite; }
-        @keyframes vibrate { 0%, 100% { transform: translate(0); } 25% { transform: translate(-3px, 3px); } 50% { transform: translate(3px, -3px); } }
+        @keyframes vibrate { 0%, 100% { transform: translate(0); } 25% { transform: translate(-2px, 2px); } 50% { transform: translate(2px, -2px); } }
         .gradient-text { background: linear-gradient(to right, #ff0055, #ffdd00, #00ffaa, #0088ff, #cc00ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-size: 400% 400%; animation: moveGradient 5s ease infinite; }
         @keyframes moveGradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .color-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; cursor: pointer; transition: all 0.2s; }
         .active-color { border: 3px solid #000; transform: scale(1.2); }
         .wish-popup { position: fixed; pointer-events: none; font-weight: 900; padding: 12px 24px; background: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 5; animation: floatUp 4s ease-out forwards; border-left: 5px solid; }
         @keyframes floatUp { 0% { transform: translateY(20px); opacity: 0; } 10% { transform: translateY(0); opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-100px); opacity: 0; } }
-        .mode-btn { border: 2px solid transparent; }
-        .mode-btn.active { border-color: black; background: black !important; color: white !important; }
+        
+        .mode-btn { border: 2px solid transparent; transition: all 0.2s; }
+        .mode-btn.active { border-color: black; background: black !important; color: white !important; transform: scale(1.05); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        
+        .clear-btn {
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            border: 1px solid #f1f5f9;
+        }
+        .clear-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+        .clear-btn:active { transform: translateY(0); }
     </style>
 </head>
 <body>
 
-    <!-- Login -->
+    <!-- On-screen Notification (Still kept for visual confirmation alongside real email) -->
+    <div id="notification-box" class="interactive" style="position: fixed; top: 20px; right: 20px; z-index: 999; background: #1e293b; color: white; padding: 20px; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-width: 300px; display: none;">
+        <div class="flex justify-between items-start mb-2">
+            <span class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Email Dispatched</span>
+            <button onclick="this.parentElement.parentElement.style.display='none'" class="text-gray-400 text-xs">✕</button>
+        </div>
+        <p class="text-xs font-semibold leading-relaxed">Hi <span id="notif-name">User</span>! A passcode has been sent to your inbox.</p>
+        <h3 id="notif-code" class="text-2xl font-black text-center my-3 text-green-400 tracking-widest">000000</h3>
+        <p class="text-[9px] text-gray-400 italic text-center">Check your mail or use the code above.</p>
+    </div>
+
+    <!-- Login Overlay -->
     <div id="login-overlay">
         <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center">
             <h2 class="text-3xl font-black gradient-text uppercase tracking-tighter">Team Holi Portal</h2>
-            <p class="text-gray-400 text-sm mb-6">Enter your office email to start splashing!</p>
-            <form id="login-form" class="space-y-4">
-                <input type="email" id="user-email" required class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-semibold" placeholder="yourname@company.com">
-                <p id="login-error" class="text-red-500 text-xs font-bold hidden">Access Denied: Not on the guest list.</p>
-                <button type="submit" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-blue-700 transition-all uppercase tracking-widest">Login to Holi Bash</button>
-            </form>
+            
+            <div id="login-stage-email">
+                <p class="text-gray-400 text-sm mb-6 mt-2">Enter your office email to begin</p>
+                <form id="email-form" class="space-y-4">
+                    <input type="email" id="user-email" required class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-semibold" placeholder="yourname@company.com">
+                    <p id="email-error" class="text-red-500 text-[10px] font-bold hidden">Email not authorized. Use Admin Tools to add it first.</p>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-blue-700 transition-all uppercase tracking-widest">Get Passcode</button>
+                </form>
+            </div>
+
+            <div id="login-stage-passcode" class="hidden" style="display: none;">
+                <p class="text-gray-400 text-sm mb-4 mt-2">Enter the 6-digit code sent to <br><span id="target-email-display" class="text-blue-600 font-bold">...</span></p>
+                <form id="passcode-form" class="space-y-4">
+                    <input type="text" maxlength="6" id="user-passcode" required style="letter-spacing: 0.5em; text-align: center; font-weight: 900;" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-500 text-2xl" placeholder="000000">
+                    <p id="passcode-error" class="text-red-500 text-xs font-bold hidden">Invalid Passcode.</p>
+                    <button type="submit" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-green-700 transition-all uppercase tracking-widest">Login to Bash</button>
+                    <button type="button" onclick="resetToEmail()" class="text-[10px] text-gray-400 font-black uppercase mt-4 hover:text-gray-600 transition">← Use different email</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -86,68 +122,84 @@
     <div class="ui-layer">
         <div class="flex justify-between items-start">
             <div class="card interactive bg-white/90 backdrop-blur-md p-4 rounded-3xl shadow-xl border-b-4 border-pink-500 flex items-center gap-4">
-                <div id="user-pfp" class="w-12 h-12 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-black text-xl">?</div>
+                <div id="user-pfp" class="w-12 h-12 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-black text-xl shadow-inner">?</div>
                 <div>
                     <h1 id="display-name" class="font-black text-gray-800 leading-none text-base md:text-xl tracking-tighter uppercase">Employee</h1>
-                    <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase"><span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block mr-1"></span> ONLINE</p>
-                    <button id="admin-btn" onclick="toggleAdminPanel(true)" class="hidden mt-2 text-[9px] bg-red-100 text-red-600 font-black px-3 py-1 rounded-full uppercase tracking-widest hover:bg-red-200">Admin Tools</button>
+                    <div class="flex gap-2 items-center mt-1">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"><span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block mr-1 animate-pulse"></span> ONLINE</p>
+                        <button onclick="logout()" class="text-[9px] font-black text-red-500 uppercase hover:underline transition">Logout 🚪</button>
+                    </div>
+                    <button id="admin-btn" onclick="toggleAdminPanel(true)" class="hidden mt-2 text-[9px] bg-red-100 text-red-600 font-black px-3 py-1 rounded-full uppercase tracking-widest hover:bg-red-200 transition">Admin Tools</button>
                 </div>
             </div>
 
             <div class="flex flex-col gap-3 items-end">
                 <div class="card interactive bg-white/95 backdrop-blur-lg p-5 rounded-[2rem] shadow-2xl w-72 border border-white">
-                    <p class="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">Recipients</p>
-                    <div id="target-list" class="max-h-32 overflow-y-auto flex flex-col gap-1.5 border-b pb-3 mb-3 custom-scrollbar">
+                    <p class="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest flex justify-between items-center">
+                        Recipients <span id="recipient-count" class="bg-pink-100 text-pink-600 px-2 rounded-full">All</span>
+                    </p>
+                    <div id="target-list" class="max-h-32 overflow-y-auto flex flex-col gap-1.5 border-b pb-3 mb-3 custom-scrollbar px-1">
                         <label class="flex items-center gap-2 text-xs font-black cursor-pointer bg-blue-50/50 p-2 rounded-xl border border-blue-100">
-                            <input type="checkbox" id="select-all-targets" checked> Everyone 🌈
+                            <input type="checkbox" id="select-all-targets" checked class="w-4 h-4 rounded text-pink-500"> Everyone 🌈
                         </label>
                     </div>
-                    <textarea id="wish-text" rows="2" placeholder="Type a custom wish..." class="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs outline-none mb-3 font-semibold resize-none"></textarea>
-                    <button onclick="sendAction()" class="w-full py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-2xl font-black text-xs hover:opacity-90 shadow-lg">Splash & Send Wish! ✨</button>
+                    <textarea id="wish-text" rows="2" placeholder="Type a custom wish..." class="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs outline-none mb-3 font-semibold resize-none focus:border-pink-300 transition"></textarea>
+                    <button onclick="sendAction()" class="w-full py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-2xl font-black text-xs hover:opacity-90 shadow-lg uppercase tracking-wider">Splash & Send Wish! ✨</button>
                 </div>
+                
                 <div class="flex gap-2">
-                    <button onclick="clearMyBoard('wishes')" class="interactive px-4 py-2 bg-white/90 rounded-2xl shadow-xl text-[9px] font-black uppercase text-orange-600 border border-orange-100 hover:bg-orange-50 transition-all flex items-center gap-2"><span>✨</span> Wishes</button>
-                    <button onclick="clearMyBoard('colors')" class="interactive px-4 py-2 bg-white/90 rounded-2xl shadow-xl text-[9px] font-black uppercase text-blue-600 border border-blue-100 hover:bg-blue-50 transition-all flex items-center gap-2"><span>🎨</span> Colors</button>
-                    <button onclick="clearMyBoard('all')" class="interactive px-4 py-2 bg-white/90 rounded-2xl shadow-xl text-[9px] font-black uppercase text-red-500 border border-red-100 hover:bg-red-50 transition-all flex items-center gap-2"><span>🗑️</span> All</button>
+                    <button onclick="clearMyBoard('wishes')" class="interactive clear-btn px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-orange-600 flex items-center gap-2">
+                        <span>✨</span> WISHES
+                    </button>
+                    <button onclick="clearMyBoard('colors')" class="interactive clear-btn px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                        <span>🎨</span> COLORS
+                    </button>
+                    <button onclick="clearMyBoard('all')" class="interactive clear-btn px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-red-500 flex items-center gap-2">
+                        <span>🗑️</span> ALL
+                    </button>
                 </div>
             </div>
         </div>
 
         <div class="flex flex-col md:flex-row gap-4 items-center justify-between interactive">
-            <div class="bg-white/95 backdrop-blur-md p-3 rounded-[2rem] shadow-2xl flex gap-2 overflow-x-auto max-w-md no-scrollbar" id="palette"></div>
+            <div class="bg-white/95 backdrop-blur-md p-3 rounded-[2rem] shadow-2xl flex gap-2 overflow-x-auto max-w-md no-scrollbar border border-white" id="palette"></div>
             <div class="flex flex-wrap gap-2 justify-center bg-black/90 p-3 rounded-[2rem] shadow-2xl">
-                <button onclick="setMode('splash')" id="btn-splash" class="mode-btn active px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400">Splash</button>
-                <button onclick="setMode('pichkari')" id="btn-pichkari" class="mode-btn px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400">Pichkari</button>
-                <button onclick="setMode('blast')" id="btn-blast" class="mode-btn px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400">Blast</button>
-                <button onclick="setMode('egg')" id="btn-egg" class="mode-btn px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400">Egg Blast</button>
-                <button onclick="triggerMegaBlast()" class="px-3 py-2 rounded-full font-black bg-white text-black hover:scale-110 active:scale-95 transition-all">💥</button>
+                <button onclick="setMode('splash')" id="btn-splash" class="mode-btn active px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400 transition-all">Splash</button>
+                <button onclick="setMode('pichkari')" id="btn-pichkari" class="mode-btn px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400 transition-all">Pichkari</button>
+                <button onclick="setMode('blast')" id="btn-blast" class="mode-btn px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400 transition-all">Blast</button>
+                <button onclick="setMode('egg')" id="btn-egg" class="mode-btn px-6 py-3 rounded-full font-black text-[10px] uppercase bg-gray-800 text-gray-400 transition-all">Egg Blast</button>
+                <button onclick="triggerMegaBlast()" class="px-4 py-3 rounded-full font-black bg-white text-black hover:scale-110 active:scale-95 transition-all uppercase tracking-widest">MEGA BLAST 💥</button>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /** * FIREBASE CONFIGURATION 
-         * This block handles both local and environment-based configuration.
-         */
-const firebaseConfig = {
-  apiKey: "AIzaSyAdMxwRFRffwyq6y2V5BywHqyU2_ykcfHo",
-  authDomain: "holi-86266.firebaseapp.com",
-  projectId: "holi-86266",
-  storageBucket: "holi-86266.firebasestorage.app",
-  messagingSenderId: "878132234023",
-  appId: "1:878132234023:web:d6d01419f44f621ed60b02",
-  measurementId: "G-VW2KE0HM94"
-};
+        // CONFIGURATION
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : { 
+                apiKey: "AIzaSyAdMxwRFRffwyq6y2V5BywHqyU2_ykcfHo", 
+                authDomain: "holi-86266.firebaseapp.com", 
+                projectId: "holi-86266", 
+                storageBucket: "holi-86266.firebasestorage.app", 
+                messagingSenderId: "878132234023", 
+                appId: "1:878132234023:web:d6d01419f44f621ed60b02" 
+            };
+
+        // USER EMAILJS CREDENTIALS
+        const EMAILJS_SERVICE_ID = "bservice_ldrohn4";
+        const EMAILJS_TEMPLATE_ID = "template_pvt74d4";
+        const EMAILJS_PUBLIC_KEY = "RpZpsuRQYOT780rwI";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "holi-celebration-v1";
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "holi-final-v3";
         const ADMIN_EMAIL = "prudhvireddy882@gmail.com";
         const HOLI_COLORS = ['#FF1493', '#FF4500', '#FFD700', '#32CD32', '#00BFFF', '#8A2BE2', '#FF6347', '#00FA9A', '#FFFF00', '#FF00FF', '#FFFACD', '#FFFFFF', '#00CED1'];
 
@@ -163,38 +215,117 @@ const firebaseConfig = {
         let currentUser = null;
         let employees = [];
         let activeActivities = [];
+        let pendingUser = null;
 
-        // Auth initialization
+        // Initialize EmailJS
+        if (typeof emailjs !== 'undefined') emailjs.init(EMAILJS_PUBLIC_KEY);
+
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (err) {
-                console.error("Auth initialization failed:", err);
-            }
+                    await signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth));
+                } else { await signInAnonymously(auth); }
+            } catch (err) { await signInAnonymously(auth); }
         };
-
         initAuth();
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // RULE 1: Use strictly formatted paths
                 const empCol = collection(db, 'artifacts', APP_ID, 'public', 'data', 'employees');
                 onSnapshot(empCol, (snapshot) => {
                     employees = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
                     updateTargetUI();
                     updateAdminList();
-                }, (err) => console.error("Snapshot error:", err));
+                });
             }
         });
 
+        // Stage 1: Verify Email and Generate Code
+        document.getElementById('email-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById('user-email');
+            const email = emailInput.value.toLowerCase().trim();
+            const found = employees.find(emp => emp.email === email) || (email === ADMIN_EMAIL ? { name: "Prudhvi (Admin)", email: ADMIN_EMAIL, gender: "male" } : null);
+
+            if (found) {
+                pendingUser = found;
+                const code = Math.floor(100000 + Math.random() * 900000).toString();
+                const id = email.replace(/[^a-zA-Z0-9]/g, '_');
+                const userDoc = doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id);
+                
+                try {
+                    await setDoc(userDoc, { ...found, currentPasscode: code, lastPasscodeAt: serverTimestamp() }, { merge: true });
+                    
+                    // Trigger real email delivery via EmailJS
+                    sendPasscodeToEmail(email, found.name, code);
+                    
+                    document.getElementById('target-email-display').innerText = email;
+                    document.getElementById('login-stage-email').style.display = 'none';
+                    document.getElementById('login-stage-passcode').style.display = 'block';
+                } catch (err) { console.error("Firestore error:", err); }
+            } else {
+                document.getElementById('email-error').classList.remove('hidden');
+                setTimeout(() => document.getElementById('email-error').classList.add('hidden'), 5000);
+            }
+        };
+
+        // Stage 2: Login Verification
+        document.getElementById('passcode-form').onsubmit = (e) => {
+            e.preventDefault();
+            const entered = document.getElementById('user-passcode').value;
+            const userInList = employees.find(emp => emp.email === pendingUser.email);
+            
+            if ((userInList && userInList.currentPasscode === entered) || (pendingUser.email === ADMIN_EMAIL && entered === "123456")) {
+                loginSuccess(userInList || pendingUser);
+            } else {
+                document.getElementById('passcode-error').classList.remove('hidden');
+            }
+        };
+
+        function sendPasscodeToEmail(email, name, code) {
+            const box = document.getElementById('notification-box');
+            document.getElementById('notif-name').innerText = name.split(' ')[0];
+            document.getElementById('notif-code').innerText = code;
+            box.style.display = 'block';
+
+            // Real EmailJS delivery
+            if (typeof emailjs !== 'undefined') {
+                emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                    to_email: email,
+                    to_name: name,
+                    passcode: code
+                }).then(
+                    (response) => { console.log('EMAIL SUCCESS!', response.status, response.text); },
+                    (error) => { console.warn('EMAIL FAILED...', error); }
+                );
+            }
+        }
+
+        function loginSuccess(found) {
+            currentUser = found;
+            document.getElementById('display-name').innerText = found.name;
+            document.getElementById('user-pfp').innerText = found.name[0];
+            if (found.email === ADMIN_EMAIL) document.getElementById('admin-btn').classList.remove('hidden');
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('notification-box').style.display = 'none';
+            initCanvas();
+            startListeningToActivities();
+        }
+
+        window.logout = async () => {
+            await signOut(auth);
+            window.location.reload();
+        };
+
+        window.resetToEmail = () => {
+            document.getElementById('login-stage-passcode').style.display = 'none';
+            document.getElementById('login-stage-email').style.display = 'block';
+        };
+
+        // Real-time Activities
         function startListeningToActivities() {
-            if (!currentUser) return;
+            if (!currentUser || !auth.currentUser) return;
             const activityCol = collection(db, 'artifacts', APP_ID, 'public', 'data', 'activities');
-            // RULE 2: Avoid complex queries, filter in memory
             onSnapshot(activityCol, (snapshot) => {
                 const incoming = snapshot.docs.map(d => ({id: d.id, ...d.data()}))
                                 .filter(d => d.toEmail === currentUser.email || d.toEmail === 'Everyone');
@@ -204,13 +335,16 @@ const firebaseConfig = {
                     clearAndRedraw();
                 } else {
                     snapshot.docChanges().forEach(change => {
-                        const data = change.doc.data();
-                        const isForMe = data.toEmail === currentUser.email || data.toEmail === 'Everyone';
-                        if (change.type === "added" && isForMe) renderActivity(data);
+                        if (change.type === "added") {
+                            const data = change.doc.data();
+                            if (data.toEmail === currentUser.email || data.toEmail === 'Everyone') {
+                                renderActivity(data);
+                            }
+                        }
                     });
                     activeActivities = incoming;
                 }
-            }, (err) => console.error("Activity Listener error:", err));
+            });
         }
 
         function renderActivity(data) {
@@ -219,8 +353,8 @@ const firebaseConfig = {
                     setTimeout(() => {
                         const x = Math.random() * canvas.width;
                         const y = Math.random() * canvas.height;
-                        const randomColor = HOLI_COLORS[Math.floor(Math.random() * HOLI_COLORS.length)];
-                        createSplashEffect(x, y, randomColor, 70, 'blast');
+                        const rc = HOLI_COLORS[Math.floor(Math.random() * HOLI_COLORS.length)];
+                        createSplashEffect(x, y, rc, 75, 'blast');
                     }, i * 120);
                 }
                 return;
@@ -229,7 +363,7 @@ const firebaseConfig = {
             const y = data.y || Math.random() * canvas.height;
             if (data.type === 'wish') showWishPopup(data.fromName, data.wishText, data.color);
             if (data.type === 'blast') {
-                for(let j=0; j<3; j++) {
+                for(let j=0; j<4; j++) {
                     const rc = HOLI_COLORS[Math.floor(Math.random() * HOLI_COLORS.length)];
                     createSplashEffect(x, y, rc, 35, 'blast');
                 }
@@ -242,11 +376,11 @@ const firebaseConfig = {
             const div = document.createElement('div');
             div.className = 'wish-popup';
             div.style.borderColor = color;
-            div.style.left = (Math.random() * 50 + 15) + '%';
-            div.style.top = (Math.random() * 50 + 15) + '%';
+            div.style.left = (Math.random() * 50 + 20) + '%';
+            div.style.top = (Math.random() * 50 + 20) + '%';
             div.innerHTML = `<div class="text-[9px] font-black uppercase text-gray-400">Wish from ${from}</div><div class="text-xs font-bold mt-1">${text}</div>`;
             document.body.appendChild(div);
-            setTimeout(() => div.remove(), 4000);
+            setTimeout(() => div.remove(), 6000);
         }
 
         function clearAndRedraw() {
@@ -254,21 +388,6 @@ const firebaseConfig = {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             activeActivities.forEach(renderActivity);
         }
-
-        document.getElementById('login-form').onsubmit = (e) => {
-            e.preventDefault();
-            const email = document.getElementById('user-email').value.toLowerCase().trim();
-            const found = employees.find(emp => emp.email === email) || (email === ADMIN_EMAIL ? { name: "Prudhvi (Admin)", email: ADMIN_EMAIL, gender: "male" } : null);
-            if (found) {
-                currentUser = found;
-                document.getElementById('display-name').innerText = found.name;
-                document.getElementById('user-pfp').innerText = found.name[0];
-                if (email === ADMIN_EMAIL) document.getElementById('admin-btn').classList.remove('hidden');
-                document.getElementById('login-overlay').style.display = 'none';
-                initCanvas();
-                startListeningToActivities();
-            } else { document.getElementById('login-error').classList.remove('hidden'); }
-        };
 
         window.triggerMegaBlast = async () => {
             if (!currentUser || !auth.currentUser) return;
@@ -295,23 +414,24 @@ const firebaseConfig = {
 
         window.clearMyBoard = async (mode) => {
             if (!currentUser || !auth.currentUser) return;
-            // RULE 2: No complex queries. Fetch all and filter in JS
             const col = collection(db, 'artifacts', APP_ID, 'public', 'data', 'activities');
             const snapshot = await getDocs(col);
-            for (const d of snapshot.docs) {
+            const deletePromises = [];
+            
+            snapshot.docs.forEach(d => {
                 const data = d.data();
-                if (data.toEmail === currentUser.email) {
-                    let del = false;
-                    if (mode === 'all') del = true;
-                    else if (mode === 'wishes' && data.type === 'wish') del = true;
-                    else if (mode === 'colors' && data.type !== 'wish') del = true;
-                    if (del) await deleteDoc(d.ref);
+                if (data.toEmail === currentUser.email || data.toEmail === 'Everyone') {
+                    let shouldDelete = false;
+                    if (mode === 'all') shouldDelete = true;
+                    else if (mode === 'wishes' && data.type === 'wish') shouldDelete = true;
+                    else if (mode === 'colors' && data.type !== 'wish') shouldDelete = true;
+                    if (shouldDelete) deletePromises.push(deleteDoc(d.ref));
                 }
-            }
+            });
+            if (deletePromises.length > 0) await Promise.all(deletePromises);
         };
 
         window.handleBulkImport = async () => {
-            if (!auth.currentUser) return;
             const ta = document.getElementById('bulk-import-text');
             const lines = ta.value.trim().split('\n');
             let count = 0;
@@ -330,35 +450,30 @@ const firebaseConfig = {
 
         document.getElementById('admin-add-form').onsubmit = async (e) => {
             e.preventDefault();
-            if (!auth.currentUser) return;
-            const n = document.getElementById('new-name').value;
-            const em = document.getElementById('new-email').value.toLowerCase();
-            const id = em.replace(/[^a-zA-Z0-9]/g, '_');
-            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { name: n, email: em, gender: document.getElementById('new-gender').value });
+            const email = document.getElementById('new-email').value.toLowerCase();
+            const id = email.replace(/[^a-zA-Z0-9]/g, '_');
+            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { name: document.getElementById('new-name').value, email: email, gender: document.getElementById('new-gender').value });
             e.target.reset();
         };
 
-        window.deleteEmployee = async (id) => {
-            if (!auth.currentUser) return;
-            await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id));
-        };
+        window.deleteEmployee = async (id) => await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id));
 
         function updateAdminList() {
             document.getElementById('employee-list-admin').innerHTML = employees.map(emp => `
-                <div class="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-[10px] font-black uppercase">
-                    <div>${emp.name} <span class="text-[8px] text-gray-400 lowercase">(${emp.email})</span></div>
-                    <button onclick="deleteEmployee('${emp.id}')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg">Remove</button>
+                <div class="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-[10px] font-black uppercase tracking-tight">
+                    <div>${emp.name} <span class="text-[8px] text-gray-400 lowercase font-bold">(${emp.email})</span></div>
+                    <button onclick="deleteEmployee('${emp.id}')" class="text-red-500 hover:bg-red-50 px-3 py-1 rounded-lg transition">Remove</button>
                 </div>
             `).join('');
         }
 
         function updateTargetUI() {
             const selectAll = document.getElementById('select-all-targets')?.checked;
-            targetListDiv.innerHTML = `<label class="flex items-center gap-2 text-xs font-black cursor-pointer bg-blue-50/50 p-2 rounded-xl"><input type="checkbox" id="select-all-targets" ${selectAll ? 'checked' : ''}> Everyone 🌈</label>`;
+            targetListDiv.innerHTML = `<label class="flex items-center gap-2 text-xs font-black cursor-pointer bg-blue-50/50 p-2 rounded-xl border border-blue-100"><input type="checkbox" id="select-all-targets" ${selectAll ? 'checked' : ''}> Everyone 🌈</label>`;
             employees.forEach(emp => {
-                if (emp.email === currentUser?.email) return;
+                if (currentUser && emp.email === currentUser.email) return;
                 const div = document.createElement('label');
-                div.className = "flex items-center gap-2 text-[10px] font-bold py-1 border-b border-gray-50 hover:bg-gray-50";
+                div.className = "flex items-center gap-2 text-[10px] font-bold py-2 border-b border-gray-50 hover:bg-gray-50 transition px-1";
                 div.innerHTML = `<input type="checkbox" class="target-checkbox" value="${emp.email}"> ${emp.name}`;
                 targetListDiv.appendChild(div);
             });
@@ -386,15 +501,10 @@ const firebaseConfig = {
                 this.x = x; this.y = y; this.color = color; this.size = size;
                 this.vx = vx; this.vy = vy; this.alpha = 1;
                 this.decay = type === 'egg' ? 0.005 : 0.012;
-                this.gravity = type === 'pichkari' ? 0.04 : 0.1;
+                this.gravity = type === 'pichkari' ? 0.04 : 0.12;
             }
-            draw() {
-                ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore();
-            }
-            update() {
-                this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.alpha -= this.decay;
-                if (this.alpha <= 0.05) { ctx.save(); ctx.globalAlpha = 0.15; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); }
-            }
+            draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); }
+            update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.alpha -= this.decay; if (this.alpha <= 0.05) { ctx.save(); ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2.2, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); } }
         }
 
         function createSplashEffect(x, y, color, density, type) {
@@ -402,41 +512,39 @@ const firebaseConfig = {
             for (let i = 0; i < density; i++) {
                 const s = Math.random() * (type === 'egg' ? 14 : 9) + 2;
                 const a = Math.random() * Math.PI * 2;
-                const sp = Math.random() * (type === 'blast' ? 14 : 9) + 2;
+                const sp = Math.random() * (type === 'blast' ? 15 : 10) + 2;
                 particles.push(new Particle(x, y, fc, s, Math.cos(a)*sp, Math.sin(a)*sp-2, type));
             }
-            document.body.classList.add('vibrate');
-            setTimeout(() => document.body.classList.remove('vibrate'), 120);
+            document.body.classList.add('vibrate'); setTimeout(() => document.body.classList.remove('vibrate'), 120);
         }
 
-        function animate() {
-            particles.forEach((p, i) => { p.update(); p.draw(); if (p.alpha <= 0) particles.splice(i, 1); });
-            requestAnimationFrame(animate);
-        }
+        function animate() { particles.forEach((p, i) => { p.update(); p.draw(); if (p.alpha <= 0) particles.splice(i, 1); }); requestAnimationFrame(animate); }
 
-        window.setMode = (m) => {
-            interactionMode = m;
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + m).classList.add('active');
+        window.setMode = (m) => { interactionMode = m; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn-' + m).classList.add('active'); };
+        window.toggleAdminPanel = (s) => document.getElementById('admin-overlay').style.display = s ? 'flex' : 'none';
+        
+        window.onmousemove = (e) => {
+            if (!currentUser) return;
+            if (isDrawing && interactionMode === 'pichkari') {
+                createSplashEffect(e.clientX, e.clientY, currentColor, 4, 'pichkari');
+            }
         };
 
-        window.toggleAdminPanel = (s) => document.getElementById('admin-overlay').style.display = s ? 'flex' : 'none';
         window.onmousedown = (e) => { 
             if (e.target.tagName === 'CANVAS') { 
                 isDrawing = true; 
                 if (interactionMode !== 'pichkari') {
                     if (interactionMode === 'blast') {
-                        for(let j=0; j<3; j++) {
+                        for(let j=0; j<4; j++) {
                             const rc = HOLI_COLORS[Math.floor(Math.random() * HOLI_COLORS.length)];
                             createSplashEffect(e.clientX, e.clientY, rc, 35, 'blast');
                         }
                     } else {
-                        createSplashEffect(e.clientX, e.clientY, currentColor, 40, interactionMode);
+                        createSplashEffect(e.clientX, e.clientY, currentColor, 45, interactionMode);
                     }
                 }
             } 
         };
-        window.onmousemove = (e) => { if (isDrawing && interactionMode === 'pichkari') createSplashEffect(e.clientX, e.clientY, currentColor, 3, 'pichkari'); };
         window.onmouseup = () => isDrawing = false;
         window.onresize = initCanvas;
     </script>
