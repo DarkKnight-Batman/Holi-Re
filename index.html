@@ -6,7 +6,7 @@
     <title>Corporate Holi Bash 2024</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;900&display=swap" rel="stylesheet">
-    <!-- EmailJS Library - Required for real email delivery -->
+    <!-- EmailJS Library -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; background: #fdfdfd; user-select: none; }
@@ -25,56 +25,43 @@
         .wish-popup { position: fixed; pointer-events: none; font-weight: 900; padding: 12px 24px; background: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 5; animation: floatUp 4s ease-out forwards; border-left: 5px solid; }
         @keyframes floatUp { 0% { transform: translateY(20px); opacity: 0; } 10% { transform: translateY(0); opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-100px); opacity: 0; } }
         
-        .mode-btn { border: 2px solid transparent; transition: all 0.2s; }
+        .mode-btn { border: 2px solid transparent; transition: all 0.2s; border-radius: 9999px; }
         .mode-btn.active { border-color: black; background: black !important; color: white !important; transform: scale(1.05); }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
         
-        .clear-btn {
-            background: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            transition: all 0.2s;
-            border: 1px solid #f1f5f9;
-        }
-        .clear-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+        .clear-btn { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: all 0.2s; border: 1.5px solid black; border-radius: 9999px; font-weight: 800; font-size: 10px; letter-spacing: 0.05em; }
+        .clear-btn:hover { transform: translateY(-2px); background: #fef2f2; border-color: #ef4444; color: #ef4444; }
         .clear-btn:active { transform: translateY(0); }
+        
+        .passcode-input { letter-spacing: 0.5em; text-align: center; font-weight: 900; }
+        .hidden-stage { display: none !important; }
     </style>
 </head>
 <body>
-
-    <!-- On-screen Notification (Still kept for visual confirmation alongside real email) -->
-    <div id="notification-box" class="interactive" style="position: fixed; top: 20px; right: 20px; z-index: 999; background: #1e293b; color: white; padding: 20px; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-width: 300px; display: none;">
-        <div class="flex justify-between items-start mb-2">
-            <span class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Email Dispatched</span>
-            <button onclick="this.parentElement.parentElement.style.display='none'" class="text-gray-400 text-xs">✕</button>
-        </div>
-        <p class="text-xs font-semibold leading-relaxed">Hi <span id="notif-name">User</span>! A passcode has been sent to your inbox.</p>
-        <h3 id="notif-code" class="text-2xl font-black text-center my-3 text-green-400 tracking-widest">000000</h3>
-        <p class="text-[9px] text-gray-400 italic text-center">Check your mail or use the code above.</p>
-    </div>
 
     <!-- Login Overlay -->
     <div id="login-overlay">
         <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center">
             <h2 class="text-3xl font-black gradient-text uppercase tracking-tighter">Team Holi Portal</h2>
             
+            <!-- Stage 1: Email -->
             <div id="login-stage-email">
-                <p class="text-gray-400 text-sm mb-6 mt-2">Enter your office email to begin</p>
+                <p class="text-gray-400 text-sm mb-6 mt-2">Enter your work email to receive your secure passcode.</p>
                 <form id="email-form" class="space-y-4">
                     <input type="email" id="user-email" required class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-semibold" placeholder="yourname@company.com">
-                    <p id="email-error" class="text-red-500 text-[10px] font-bold hidden">Email not authorized. Use Admin Tools to add it first.</p>
-                    <button type="submit" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-blue-700 transition-all uppercase tracking-widest">Get Passcode</button>
+                    <p id="email-error" class="text-red-500 text-[10px] font-bold hidden">Email not authorized. Contact Admin.</p>
+                    <div id="email-sending-status" class="text-blue-500 text-[10px] font-bold hidden animate-pulse">Checking credentials & sending mail...</div>
+                    <button type="submit" id="btn-get-passcode" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-blue-700 transition-all uppercase tracking-widest">Get Passcode</button>
                 </form>
             </div>
 
-            <div id="login-stage-passcode" class="hidden" style="display: none;">
-                <p class="text-gray-400 text-sm mb-4 mt-2">Enter the 6-digit code sent to <br><span id="target-email-display" class="text-blue-600 font-bold">...</span></p>
+            <!-- Stage 2: Passcode Verification -->
+            <div id="login-stage-passcode" class="hidden-stage">
+                <p class="text-gray-400 text-sm mb-4 mt-2">Enter the code sent to:<br><span id="target-email-display" class="text-blue-600 font-bold">...</span></p>
                 <form id="passcode-form" class="space-y-4">
-                    <input type="text" maxlength="6" id="user-passcode" required style="letter-spacing: 0.5em; text-align: center; font-weight: 900;" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-500 text-2xl" placeholder="000000">
-                    <p id="passcode-error" class="text-red-500 text-xs font-bold hidden">Invalid Passcode.</p>
+                    <input type="text" maxlength="6" id="user-passcode" required class="passcode-input w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-500 text-2xl" placeholder="000000">
+                    <p id="passcode-error" class="text-red-500 text-xs font-bold hidden">Invalid passcode. Try again.</p>
                     <button type="submit" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-green-700 transition-all uppercase tracking-widest">Login to Bash</button>
-                    <button type="button" onclick="resetToEmail()" class="text-[10px] text-gray-400 font-black uppercase mt-4 hover:text-gray-600 transition">← Use different email</button>
+                    <button type="button" onclick="resetToEmail()" class="text-[10px] text-gray-400 font-black uppercase mt-4 hover:text-gray-600 transition">← Back to Email</button>
                 </form>
             </div>
         </div>
@@ -86,14 +73,13 @@
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h3 class="text-2xl font-black">Admin Dashboard</h3>
-                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Manage your authorized guest list</p>
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Manage authorized guest list</p>
                 </div>
                 <button onclick="toggleAdminPanel(false)" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition">✕</button>
             </div>
-            
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 overflow-y-auto">
                 <div class="bg-gray-50 p-5 rounded-3xl border border-gray-100">
-                    <h4 class="text-xs font-black mb-4 uppercase text-gray-500 flex items-center gap-2">Individual Entry</h4>
+                    <h4 class="text-xs font-black mb-4 uppercase text-gray-500">Individual Entry</h4>
                     <form id="admin-add-form" class="flex flex-col gap-3">
                         <input type="text" id="new-name" placeholder="Full Name" class="p-3 border rounded-xl text-sm font-semibold outline-none focus:border-blue-500" required>
                         <input type="email" id="new-email" placeholder="Work Email" class="p-3 border rounded-xl text-sm font-semibold outline-none focus:border-blue-500" required>
@@ -104,10 +90,9 @@
                         <button type="submit" class="bg-blue-600 text-white px-4 py-3 rounded-xl font-bold text-sm hover:bg-blue-700">Add Employee</button>
                     </form>
                 </div>
-
                 <div class="bg-indigo-50 p-5 rounded-3xl border border-indigo-100">
                     <h4 class="text-xs font-black mb-1 uppercase text-indigo-500">Bulk Import</h4>
-                    <p class="text-[10px] text-indigo-400 mb-3 font-bold uppercase">Format: Name, Email, Gender (one per line)</p>
+                    <p class="text-[10px] text-indigo-400 mb-3 font-bold uppercase tracking-tighter">Format: Name, Email, Gender (One per line)</p>
                     <textarea id="bulk-import-text" class="w-full h-32 p-3 text-[11px] border rounded-2xl outline-none focus:border-indigo-400 font-mono" placeholder="John Doe, john@company.com, male"></textarea>
                     <button onclick="handleBulkImport()" class="w-full mt-3 bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-indigo-700">Import Guest List</button>
                     <div id="import-status" class="text-[10px] font-black mt-2 text-center hidden"></div>
@@ -126,7 +111,7 @@
                 <div>
                     <h1 id="display-name" class="font-black text-gray-800 leading-none text-base md:text-xl tracking-tighter uppercase">Employee</h1>
                     <div class="flex gap-2 items-center mt-1">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"><span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block mr-1 animate-pulse"></span> ONLINE</p>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase"><span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block mr-1 animate-pulse"></span> ONLINE</p>
                         <button onclick="logout()" class="text-[9px] font-black text-red-500 uppercase hover:underline transition">Logout 🚪</button>
                     </div>
                     <button id="admin-btn" onclick="toggleAdminPanel(true)" class="hidden mt-2 text-[9px] bg-red-100 text-red-600 font-black px-3 py-1 rounded-full uppercase tracking-widest hover:bg-red-200 transition">Admin Tools</button>
@@ -148,14 +133,10 @@
                 </div>
                 
                 <div class="flex gap-2">
-                    <button onclick="clearMyBoard('wishes')" class="interactive clear-btn px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-orange-600 flex items-center gap-2">
-                        <span>✨</span> WISHES
-                    </button>
-                    <button onclick="clearMyBoard('colors')" class="interactive clear-btn px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
-                        <span>🎨</span> COLORS
-                    </button>
-                    <button onclick="clearMyBoard('all')" class="interactive clear-btn px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-red-500 flex items-center gap-2">
-                        <span>🗑️</span> ALL
+                    <!-- ONLY CLEAR ALL BUTTON REMAINING -->
+                    <button id="clear-all-btn" onclick="clearMyBoard()" class="interactive clear-btn px-6 py-2.5 text-red-500 flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19V4M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
+                        CLEAR ALL BOARD
                     </button>
                 </div>
             </div>
@@ -178,7 +159,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURATION
+        // FIREBASE CREDENTIALS
         const firebaseConfig = typeof __firebase_config !== 'undefined' 
             ? JSON.parse(__firebase_config) 
             : { 
@@ -190,8 +171,8 @@
                 appId: "1:878132234023:web:d6d01419f44f621ed60b02" 
             };
 
-        // USER EMAILJS CREDENTIALS
-        const EMAILJS_SERVICE_ID = "bservice_ldrohn4";
+        // EMAILJS CREDENTIALS
+        const EMAILJS_SERVICE_ID = "service_ldrohn4";
         const EMAILJS_TEMPLATE_ID = "template_pvt74d4";
         const EMAILJS_PUBLIC_KEY = "RpZpsuRQYOT780rwI";
 
@@ -199,7 +180,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "holi-final-v3";
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "holi-bash-final-prod";
         const ADMIN_EMAIL = "prudhvireddy882@gmail.com";
         const HOLI_COLORS = ['#FF1493', '#FF4500', '#FFD700', '#32CD32', '#00BFFF', '#8A2BE2', '#FF6347', '#00FA9A', '#FFFF00', '#FF00FF', '#FFFACD', '#FFFFFF', '#00CED1'];
 
@@ -217,7 +198,6 @@
         let activeActivities = [];
         let pendingUser = null;
 
-        // Initialize EmailJS
         if (typeof emailjs !== 'undefined') emailjs.init(EMAILJS_PUBLIC_KEY);
 
         const initAuth = async () => {
@@ -240,37 +220,46 @@
             }
         });
 
-        // Stage 1: Verify Email and Generate Code
         document.getElementById('email-form').onsubmit = async (e) => {
             e.preventDefault();
-            const emailInput = document.getElementById('user-email');
-            const email = emailInput.value.toLowerCase().trim();
+            const email = document.getElementById('user-email').value.toLowerCase().trim();
             const found = employees.find(emp => emp.email === email) || (email === ADMIN_EMAIL ? { name: "Prudhvi (Admin)", email: ADMIN_EMAIL, gender: "male" } : null);
 
             if (found) {
                 pendingUser = found;
+                const statusEl = document.getElementById('email-sending-status');
+                statusEl.classList.remove('hidden');
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
                 const id = email.replace(/[^a-zA-Z0-9]/g, '_');
-                const userDoc = doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id);
                 
                 try {
-                    await setDoc(userDoc, { ...found, currentPasscode: code, lastPasscodeAt: serverTimestamp() }, { merge: true });
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { 
+                        ...found, currentPasscode: code, lastPasscodeAt: serverTimestamp() 
+                    }, { merge: true });
                     
-                    // Trigger real email delivery via EmailJS
-                    sendPasscodeToEmail(email, found.name, code);
+                    if (typeof emailjs !== 'undefined') {
+                        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                            to_email: email, 
+                            name: found.name, 
+                            message: code // Matches {{message}} in EmailJS template
+                        });
+                    }
                     
+                    statusEl.classList.add('hidden');
                     document.getElementById('target-email-display').innerText = email;
-                    document.getElementById('login-stage-email').style.display = 'none';
-                    document.getElementById('login-stage-passcode').style.display = 'block';
-                } catch (err) { console.error("Firestore error:", err); }
+                    document.getElementById('login-stage-email').classList.add('hidden-stage');
+                    document.getElementById('login-stage-passcode').classList.remove('hidden-stage');
+                } catch (err) { 
+                    statusEl.classList.add('hidden');
+                    console.error("Mail Send Failure:", err);
+                    alert("Unable to send passcode. Check EmailJS configuration.");
+                }
             } else {
                 document.getElementById('email-error').classList.remove('hidden');
-                setTimeout(() => document.getElementById('email-error').classList.add('hidden'), 5000);
             }
         };
 
-        // Stage 2: Login Verification
-        document.getElementById('passcode-form').onsubmit = (e) => {
+        document.getElementById('passcode-form').onsubmit = async (e) => {
             e.preventDefault();
             const entered = document.getElementById('user-passcode').value;
             const userInList = employees.find(emp => emp.email === pendingUser.email);
@@ -282,69 +271,34 @@
             }
         };
 
-        function sendPasscodeToEmail(email, name, code) {
-            const box = document.getElementById('notification-box');
-            document.getElementById('notif-name').innerText = name.split(' ')[0];
-            document.getElementById('notif-code').innerText = code;
-            box.style.display = 'block';
-
-            // Real EmailJS delivery
-            if (typeof emailjs !== 'undefined') {
-                emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-                    to_email: email,
-                    to_name: name,
-                    passcode: code
-                }).then(
-                    (response) => { console.log('EMAIL SUCCESS!', response.status, response.text); },
-                    (error) => { console.warn('EMAIL FAILED...', error); }
-                );
-            }
-        }
-
         function loginSuccess(found) {
             currentUser = found;
             document.getElementById('display-name').innerText = found.name;
             document.getElementById('user-pfp').innerText = found.name[0];
             if (found.email === ADMIN_EMAIL) document.getElementById('admin-btn').classList.remove('hidden');
             document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('notification-box').style.display = 'none';
             initCanvas();
             startListeningToActivities();
         }
 
-        window.logout = async () => {
-            await signOut(auth);
-            window.location.reload();
-        };
-
+        window.logout = async () => { await signOut(auth); window.location.reload(); };
         window.resetToEmail = () => {
-            document.getElementById('login-stage-passcode').style.display = 'none';
-            document.getElementById('login-stage-email').style.display = 'block';
+            document.getElementById('login-stage-passcode').classList.add('hidden-stage');
+            document.getElementById('login-stage-email').classList.remove('hidden-stage');
         };
 
-        // Real-time Activities
         function startListeningToActivities() {
             if (!currentUser || !auth.currentUser) return;
             const activityCol = collection(db, 'artifacts', APP_ID, 'public', 'data', 'activities');
+            
             onSnapshot(activityCol, (snapshot) => {
-                const incoming = snapshot.docs.map(d => ({id: d.id, ...d.data()}))
-                                .filter(d => d.toEmail === currentUser.email || d.toEmail === 'Everyone');
+                const incoming = snapshot.docs
+                    .map(d => ({id: d.id, ...d.data()}))
+                    .filter(d => d.toEmail === currentUser.email || d.toEmail === 'Everyone');
                 
-                if (incoming.length < activeActivities.length) {
-                    activeActivities = incoming;
-                    clearAndRedraw();
-                } else {
-                    snapshot.docChanges().forEach(change => {
-                        if (change.type === "added") {
-                            const data = change.doc.data();
-                            if (data.toEmail === currentUser.email || data.toEmail === 'Everyone') {
-                                renderActivity(data);
-                            }
-                        }
-                    });
-                    activeActivities = incoming;
-                }
-            });
+                activeActivities = incoming;
+                clearAndRedraw();
+            }, (err) => console.error("Activity Stream Error:", err));
         }
 
         function renderActivity(data) {
@@ -378,12 +332,13 @@
             div.style.borderColor = color;
             div.style.left = (Math.random() * 50 + 20) + '%';
             div.style.top = (Math.random() * 50 + 20) + '%';
-            div.innerHTML = `<div class="text-[9px] font-black uppercase text-gray-400">Wish from ${from}</div><div class="text-xs font-bold mt-1">${text}</div>`;
+            div.innerHTML = `<div class="text-[9px] font-black uppercase text-gray-400">Wish from ${from}</div><div class="text-xs font-bold mt-1 text-gray-800">${text}</div>`;
             document.body.appendChild(div);
             setTimeout(() => div.remove(), 6000);
         }
 
         function clearAndRedraw() {
+            // FIX: Clear context and redraw current static snapshots
             ctx.fillStyle = '#fdfdfd';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             activeActivities.forEach(renderActivity);
@@ -412,23 +367,40 @@
             wishInput.value = "";
         };
 
-        window.clearMyBoard = async (mode) => {
+        // ENHANCED CLEAR ALL FUNCTION
+        window.clearMyBoard = async () => {
             if (!currentUser || !auth.currentUser) return;
-            const col = collection(db, 'artifacts', APP_ID, 'public', 'data', 'activities');
-            const snapshot = await getDocs(col);
-            const deletePromises = [];
-            
-            snapshot.docs.forEach(d => {
-                const data = d.data();
-                if (data.toEmail === currentUser.email || data.toEmail === 'Everyone') {
-                    let shouldDelete = false;
-                    if (mode === 'all') shouldDelete = true;
-                    else if (mode === 'wishes' && data.type === 'wish') shouldDelete = true;
-                    else if (mode === 'colors' && data.type !== 'wish') shouldDelete = true;
-                    if (shouldDelete) deletePromises.push(deleteDoc(d.ref));
+            const btn = document.getElementById('clear-all-btn');
+            const originalText = btn.innerHTML;
+            btn.innerText = "CLEARING...";
+            btn.disabled = true;
+
+            try {
+                const col = collection(db, 'artifacts', APP_ID, 'public', 'data', 'activities');
+                const snapshot = await getDocs(col);
+                const deletePromises = [];
+                
+                snapshot.docs.forEach(d => {
+                    const data = d.data();
+                    // We delete everything meant for this user OR tagged as Everyone
+                    if (data.toEmail === currentUser.email || data.toEmail === 'Everyone') {
+                        deletePromises.push(deleteDoc(d.ref));
+                    }
+                });
+                
+                if (deletePromises.length > 0) {
+                    await Promise.all(deletePromises);
                 }
-            });
-            if (deletePromises.length > 0) await Promise.all(deletePromises);
+                
+                // Locally clear active particles so current animations disappear instantly
+                particles = []; 
+                clearAndRedraw();
+            } catch (err) {
+                console.error("Board Clear Error:", err);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         };
 
         window.handleBulkImport = async () => {
@@ -444,7 +416,7 @@
                 }
             }
             ta.value = "";
-            document.getElementById('import-status').innerText = `ADDED ${count} MEMBERS.`;
+            document.getElementById('import-status').innerText = `SUCCESS! ADDED ${count} MEMBERS.`;
             document.getElementById('import-status').classList.remove('hidden');
         };
 
@@ -452,7 +424,11 @@
             e.preventDefault();
             const email = document.getElementById('new-email').value.toLowerCase();
             const id = email.replace(/[^a-zA-Z0-9]/g, '_');
-            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { name: document.getElementById('new-name').value, email: email, gender: document.getElementById('new-gender').value });
+            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { 
+                name: document.getElementById('new-name').value, 
+                email: email, 
+                gender: document.getElementById('new-gender').value 
+            });
             e.target.reset();
         };
 
@@ -518,7 +494,10 @@
             document.body.classList.add('vibrate'); setTimeout(() => document.body.classList.remove('vibrate'), 120);
         }
 
-        function animate() { particles.forEach((p, i) => { p.update(); p.draw(); if (p.alpha <= 0) particles.splice(i, 1); }); requestAnimationFrame(animate); }
+        function animate() { 
+            particles.forEach((p, i) => { p.update(); p.draw(); if (p.alpha <= 0) particles.splice(i, 1); }); 
+            requestAnimationFrame(animate); 
+        }
 
         window.setMode = (m) => { interactionMode = m; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn-' + m).classList.add('active'); };
         window.toggleAdminPanel = (s) => document.getElementById('admin-overlay').style.display = s ? 'flex' : 'none';
