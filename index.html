@@ -133,7 +133,6 @@
                 </div>
                 
                 <div class="flex gap-2">
-                    <!-- ONLY CLEAR ALL BUTTON REMAINING -->
                     <button id="clear-all-btn" onclick="clearMyBoard()" class="interactive clear-btn px-6 py-2.5 text-red-500 flex items-center gap-2">
                         <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19V4M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
                         CLEAR ALL BOARD
@@ -241,7 +240,7 @@
                         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
                             to_email: email, 
                             name: found.name, 
-                            message: code // Matches {{message}} in EmailJS template
+                            message: code
                         });
                     }
                     
@@ -287,29 +286,54 @@
             document.getElementById('login-stage-email').classList.remove('hidden-stage');
         };
 
+        // FIXED SYNC LOGIC: Prevents "Mega Blast" from wiping the board incorrectly
         function startListeningToActivities() {
             if (!currentUser || !auth.currentUser) return;
             const activityCol = collection(db, 'artifacts', APP_ID, 'public', 'data', 'activities');
             
+            let isInitialLoad = true;
             onSnapshot(activityCol, (snapshot) => {
                 const incoming = snapshot.docs
                     .map(d => ({id: d.id, ...d.data()}))
                     .filter(d => d.toEmail === currentUser.email || d.toEmail === 'Everyone');
                 
-                activeActivities = incoming;
-                clearAndRedraw();
-            }, (err) => console.error("Activity Stream Error:", err));
+                if (isInitialLoad) {
+                    activeActivities = incoming;
+                    isInitialLoad = false;
+                    // Redraw state once
+                    clearAndRedraw();
+                    return;
+                }
+
+                // If items were deleted (Clear All was clicked by someone), refresh the board
+                if (incoming.length < activeActivities.length) {
+                    activeActivities = incoming;
+                    clearAndRedraw();
+                    return;
+                }
+
+                // Otherwise, only play the animation for the NEWLY ADDED action
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        const data = change.doc.data();
+                        if (data.toEmail === currentUser.email || data.toEmail === 'Everyone') {
+                            renderActivity(data);
+                            activeActivities.push({id: change.doc.id, ...data});
+                        }
+                    }
+                });
+            }, (err) => console.error("Sync Error:", err));
         }
 
         function renderActivity(data) {
             if (data.type === 'mega-blast') {
-                for (let i = 0; i < 15; i++) {
+                for (let i = 0; i < 20; i++) {
                     setTimeout(() => {
                         const x = Math.random() * canvas.width;
                         const y = Math.random() * canvas.height;
                         const rc = HOLI_COLORS[Math.floor(Math.random() * HOLI_COLORS.length)];
-                        createSplashEffect(x, y, rc, 75, 'blast');
-                    }, i * 120);
+                        createSplashEffect(x, y, rc, 85, 'blast');
+                    }, i * 110);
                 }
                 return;
             }
@@ -338,10 +362,10 @@
         }
 
         function clearAndRedraw() {
-            // FIX: Clear context and redraw current static snapshots
             ctx.fillStyle = '#fdfdfd';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            activeActivities.forEach(renderActivity);
+            // Since everything is based on active animations, we clear particles too
+            particles = [];
         }
 
         window.triggerMegaBlast = async () => {
@@ -367,7 +391,6 @@
             wishInput.value = "";
         };
 
-        // ENHANCED CLEAR ALL FUNCTION
         window.clearMyBoard = async () => {
             if (!currentUser || !auth.currentUser) return;
             const btn = document.getElementById('clear-all-btn');
@@ -379,21 +402,13 @@
                 const col = collection(db, 'artifacts', APP_ID, 'public', 'data', 'activities');
                 const snapshot = await getDocs(col);
                 const deletePromises = [];
-                
                 snapshot.docs.forEach(d => {
                     const data = d.data();
-                    // We delete everything meant for this user OR tagged as Everyone
                     if (data.toEmail === currentUser.email || data.toEmail === 'Everyone') {
                         deletePromises.push(deleteDoc(d.ref));
                     }
                 });
-                
-                if (deletePromises.length > 0) {
-                    await Promise.all(deletePromises);
-                }
-                
-                // Locally clear active particles so current animations disappear instantly
-                particles = []; 
+                if (deletePromises.length > 0) await Promise.all(deletePromises);
                 clearAndRedraw();
             } catch (err) {
                 console.error("Board Clear Error:", err);
@@ -425,9 +440,7 @@
             const email = document.getElementById('new-email').value.toLowerCase();
             const id = email.replace(/[^a-zA-Z0-9]/g, '_');
             await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { 
-                name: document.getElementById('new-name').value, 
-                email: email, 
-                gender: document.getElementById('new-gender').value 
+                name: document.getElementById('new-name').value, email: email, gender: document.getElementById('new-gender').value 
             });
             e.target.reset();
         };
@@ -480,7 +493,10 @@
                 this.gravity = type === 'pichkari' ? 0.04 : 0.12;
             }
             draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); }
-            update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.alpha -= this.decay; if (this.alpha <= 0.05) { ctx.save(); ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2.2, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); } }
+            update() { 
+                this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.alpha -= this.decay; 
+                if (this.alpha <= 0.05) { ctx.save(); ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2.2, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); } 
+            }
         }
 
         function createSplashEffect(x, y, color, density, type) {
@@ -504,9 +520,7 @@
         
         window.onmousemove = (e) => {
             if (!currentUser) return;
-            if (isDrawing && interactionMode === 'pichkari') {
-                createSplashEffect(e.clientX, e.clientY, currentColor, 4, 'pichkari');
-            }
+            if (isDrawing && interactionMode === 'pichkari') { createSplashEffect(e.clientX, e.clientY, currentColor, 4, 'pichkari'); }
         };
 
         window.onmousedown = (e) => { 
