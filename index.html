@@ -30,7 +30,6 @@
             100% { transform: translate(30%, 40%) scale(1.4); }
         }
 
-        /* Floating Holi Elements */
         .floating-item {
             position: absolute; font-size: 3.5rem; opacity: 0.3; pointer-events: none;
             animation: driftUp 15s infinite linear;
@@ -96,13 +95,13 @@
         <!-- Colored Background Blobs -->
         <div class="holi-bg-blob" style="background: #ff00ff; top: -10%; left: -10%;"></div>
         <div class="holi-bg-blob" style="background: #ffff00; top: 30%; left: 80%; animation-delay: -5s;"></div>
-        <div class="holi-bg-blob" style="background: #00ffff; top: 60%; left: 0%; animation-delay: -10s;"></div>
+        <div class="holi-bg-blob" style="background: #00ffff; top: 60%; left: -10%; animation-delay: -10s;"></div>
         
         <!-- Floating Holi Themed Icons -->
         <div class="floating-item" style="left: 10%; animation-duration: 12s;">🔫</div>
-        <div class="floating-item" style="left: 20%; animation-duration: 18s; animation-delay: -3s;">🪣</div>
-        <div class="floating-item" style="left: 40%; animation-duration: 14s; animation-delay: -7s;">🎨</div>
-        <div class="floating-item" style="left: 60%; animation-duration: 20s; animation-delay: -1s;">🌈</div>
+        <div class="floating-item" style="left: 25%; animation-duration: 18s; animation-delay: -3s;">🪣</div>
+        <div class="floating-item" style="left: 45%; animation-duration: 14s; animation-delay: -7s;">🎨</div>
+        <div class="floating-item" style="left: 65%; animation-duration: 20s; animation-delay: -1s;">🌈</div>
         <div class="floating-item" style="left: 80%; animation-duration: 15s; animation-delay: -10s;">🔫</div>
         <div class="floating-item" style="left: 90%; animation-duration: 11s; animation-delay: -5s;">🪣</div>
 
@@ -118,8 +117,8 @@
                 <p class="text-gray-600 text-sm mb-8 font-semibold">Enter your work email for a secure passcode.</p>
                 <form id="email-form" class="space-y-5">
                     <input type="email" id="user-email" required class="w-full px-8 py-5 bg-white border-2 border-gray-100 rounded-[2rem] outline-none focus:border-purple-500 font-bold text-center shadow-inner" placeholder="yourname@company.com">
-                    <p id="email-error" class="text-red-500 text-[10px] font-black uppercase tracking-wider hidden">Access Denied: Email not on guest list.</p>
-                    <div id="email-sending-status" class="text-purple-600 text-[10px] font-black hidden animate-pulse uppercase tracking-widest">Generating Code...</div>
+                    <p id="email-error" class="text-red-500 text-[10px] font-black uppercase tracking-wider hidden text-center">Access Denied: Email not authorized.</p>
+                    <div id="email-sending-status" class="text-purple-600 text-[10px] font-black hidden animate-pulse uppercase tracking-widest">Delivering passcode...</div>
                     <button type="submit" id="btn-get-passcode" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-black py-5 rounded-[2rem] shadow-2xl hover:opacity-90 active:scale-95 transition-all uppercase tracking-widest">Get Passcode</button>
                 </form>
             </div>
@@ -167,7 +166,7 @@
                     <div id="import-status" class="text-[10px] font-black mt-2 text-center hidden"></div>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto space-y-2 pr-2 border-t pt-4" id="employee-list-admin"></div>
+            <div class="flex-1 overflow-y-auto space-y-2 pr-2 border-t pt-4 custom-scrollbar" id="employee-list-admin"></div>
         </div>
     </div>
 
@@ -306,11 +305,12 @@
                     }, { merge: true });
                     
                     if (typeof emailjs !== 'undefined') {
-                        // FIXED: 'email' matches your "To Email" setting, 'message' matches template placeholder
+                        // FIXED: Match provided template variable 'email' and subject variable 'to_email'
                         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-                            email: email, 
-                            name: found.name, 
-                            message: code
+                            email: email,       // Template "To Email" setting
+                            to_email: email,    // Template Subject line setting
+                            name: found.name,   // Template Content
+                            message: code       // Template Content
                         });
                     }
                     
@@ -318,7 +318,11 @@
                     document.getElementById('target-email-display').innerText = email;
                     document.getElementById('login-stage-email').classList.add('hidden-stage');
                     document.getElementById('login-stage-passcode').classList.remove('hidden-stage');
-                } catch (err) { statusEl.classList.add('hidden'); alert("Email error."); }
+                } catch (err) { 
+                    statusEl.classList.add('hidden'); 
+                    console.error("EmailJS dispatch failed", err);
+                    alert("Email service error. Please try again.");
+                }
             } else { document.getElementById('email-error').classList.remove('hidden'); }
         };
 
@@ -384,7 +388,7 @@
 
         function renderActivity(data) {
             if (data.type === 'mega-blast') {
-                for (let i = 0; i < 15; i++) {
+                for (let i = 0; i < 20; i++) {
                     setTimeout(() => {
                         const x = Math.random() * canvas.width;
                         const y = Math.random() * canvas.height;
@@ -413,7 +417,7 @@
             div.style.borderColor = color;
             div.style.left = (Math.random() * 50 + 20) + '%';
             div.style.top = (Math.random() * 50 + 20) + '%';
-            div.innerHTML = `<div class="text-[10px] font-black uppercase text-gray-400">Wish from ${from}</div><div class="text-sm font-bold mt-1 text-gray-800">${text}</div>`;
+            div.innerHTML = `<div class="text-[10px] font-black uppercase text-gray-400">Wish from ${from}</div><div class="text-xs font-bold mt-1 text-gray-800">${text}</div>`;
             document.body.appendChild(div);
             setTimeout(() => div.remove(), 6000);
         }
@@ -486,10 +490,15 @@
             document.getElementById('import-status').classList.remove('hidden');
         };
 
+        window.toggleAdminPanel = (s) => document.getElementById('admin-overlay').style.display = s ? 'flex' : 'none';
+
         document.getElementById('admin-add-form').onsubmit = async (e) => {
             e.preventDefault();
-            const id = document.getElementById('new-email').value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
-            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { name: document.getElementById('new-name').value, email: document.getElementById('new-email').value.toLowerCase(), gender: document.getElementById('new-gender').value });
+            const email = document.getElementById('new-email').value.toLowerCase();
+            const id = email.replace(/[^a-zA-Z0-9]/g, '_');
+            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'employees', id), { 
+                name: document.getElementById('new-name').value, email: email, gender: document.getElementById('new-gender').value 
+            });
             e.target.reset();
         };
 
@@ -543,7 +552,9 @@
             draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); }
             update() { 
                 this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.alpha -= this.decay; 
-                if (this.alpha <= 0.05) { ctx.save(); ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2.2, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); } 
+                if (this.alpha <= 0.05) { 
+                    ctx.save(); ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2.2, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); 
+                } 
             }
         }
 
@@ -564,7 +575,6 @@
         }
 
         window.setMode = (m) => { interactionMode = m; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn-' + m).classList.add('active'); };
-        window.toggleAdminPanel = (s) => document.getElementById('admin-overlay').style.display = s ? 'flex' : 'none';
         
         window.onmousemove = (e) => {
             if (!currentUser) return;
